@@ -1,6 +1,7 @@
 # Buddy Pet Generator
 
 为 Claude Code 生成你想要的电子宠物，算法 100% 与官方一致。
+![闪光皇冠小鬼！](./images/shiny-ghost.png)
 
 ## ✨ 特性
 
