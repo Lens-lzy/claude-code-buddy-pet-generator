@@ -142,6 +142,11 @@ bun buddy-reroll.js --species cat --min-stats 90
 
 欢迎提交 Issue 和 Pull Request！
 
+
+## 🙏 致谢
+
+核心生成算法（`buddy-reroll.js`）基于 @nemomen 的逆向分析：[Claude Code /buddy 宠物系统逆向分析 —— 如何重置并刷到你想要的宠物](https://linux.do/t/topic/1871870)
+
 ## 📄 许可
 
 MIT License
