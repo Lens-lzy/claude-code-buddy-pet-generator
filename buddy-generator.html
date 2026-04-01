@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buddy Pet Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 30px; }
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+        }
+        .item {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            background: white;
+        }
+        .item:hover { border-color: #667eea; background: #f5f7ff; }
+        .item.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        .stat-input label {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .stat-input input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .stat-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .checkbox-label input { width: 20px; height: 20px; cursor: pointer; }
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102,126,234,0.4);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+        }
+        .btn-secondary:hover:not(:disabled) {
+            background: #e0e0e0;
+        }
+        .progress {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f5f7ff;
+            border-radius: 8px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+        }
+        .progress-text {
+            font-size: 14px;
+            color: #666;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            border-radius: 8px;
+        }
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #16a34a;
+            margin-bottom: 12px;
+        }
+        .result-content {
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        .result-content p { margin: 8px 0; }
+        .result-content strong { color: #333; }
+        .result-content code {
+            background: #e0e0e0;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            word-break: break-all;
+        }
+        .error {
+            background: #fef2f2;
+            border-color: #fca5a5;
+        }
+        .error .result-title { color: #dc2626; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Buddy Pet Generator</h1>
+            <p>为 Claude Code 生成你想要的电子宠物</p>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <div class="section-title">选择物种</div>
+                <div class="grid" id="species-grid"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">选择稀有度</div>
+                <div class="grid" id="rarity-grid"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">选择帽子</div>
+                <div class="grid" id="hat-grid"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="shiny-checkbox">
+                        <span>✨ 闪光 (1% 概率)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">属性要求 (最小值)</div>
+                <div class="stats-grid">
+                    <div class="stat-input">
+                        <label>调试能力 (DEBUGGING)</label>
+                        <input type="number" id="stat-DEBUGGING" min="0" max="100" placeholder="不限">
+                    </div>
+                    <div class="stat-input">
+                        <label>耐心 (PATIENCE)</label>
+                        <input type="number" id="stat-PATIENCE" min="0" max="100" placeholder="不限">
+                    </div>
+                    <div class="stat-input">
+                        <label>混乱值 (CHAOS)</label>
+                        <input type="number" id="stat-CHAOS" min="0" max="100" placeholder="不限">
+                    </div>
+                    <div class="stat-input">
+                        <label>智慧 (WISDOM)</label>
+                        <input type="number" id="stat-WISDOM" min="0" max="100" placeholder="不限">
+                    </div>
+                    <div class="stat-input">
+                        <label>毒舌值 (SNARK)</label>
+                        <input type="number" id="stat-SNARK" min="0" max="100" placeholder="不限">
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="btn btn-primary" id="generate-btn">🎲 开始生成</button>
+                <button class="btn btn-secondary" id="copy-btn" disabled>📋 复制 UserID</button>
+            </div>
+
+            <div id="progress-container" style="display: none;"></div>
+            <div id="result-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const SPECIES = [
+            { id: 'duck', name: '🦆 鸭子' },
+            { id: 'goose', name: '🪿 鹅' },
+            { id: 'blob', name: '🫧 果冻' },
+            { id: 'cat', name: '🐱 猫' },
+            { id: 'dragon', name: '🐉 龙' },
+            { id: 'octopus', name: '🐙 章鱼' },
+            { id: 'owl', name: '🦉 猫头鹰' },
+            { id: 'penguin', name: '🐧 企鹅' },
+            { id: 'turtle', name: '🐢 乌龟' },
+            { id: 'snail', name: '🐌 蜗牛' },
+            { id: 'ghost', name: '👻 幽灵' },
+            { id: 'axolotl', name: '🦎 六角恐龙' },
+            { id: 'capybara', name: '🦫 水豚' },
+            { id: 'cactus', name: '🌵 仙人掌' },
+            { id: 'robot', name: '🤖 机器人' },
+            { id: 'rabbit', name: '🐰 兔子' },
+            { id: 'mushroom', name: '🍄 蘑菇' },
+            { id: 'chonk', name: '🐈 胖猫' }
+        ];
+
+        const RARITIES = [
+            { id: 'common', name: '★ 普通', color: '#9ca3af' },
+            { id: 'uncommon', name: '★★ 非凡', color: '#22c55e' },
+            { id: 'rare', name: '★★★ 稀有', color: '#3b82f6' },
+            { id: 'epic', name: '★★★★ 史诗', color: '#a855f7' },
+            { id: 'legendary', name: '★★★★★ 传说', color: '#eab308' }
+        ];
+
+        const HATS = [
+            { id: 'none', name: '无帽子' },
+            { id: 'crown', name: '👑 皇冠' },
+            { id: 'tophat', name: '🎩 礼帽' },
+            { id: 'propeller', name: '🚁 螺旋桨帽' },
+            { id: 'halo', name: '😇 光环' },
+            { id: 'wizard', name: '🧙 巫师帽' },
+            { id: 'beanie', name: '🧢 毛线帽' },
+            { id: 'tinyduck', name: '🦆 小鸭子' }
+        ];
+
+        const SALT = 'friend-2026-401';
+        const RARITY_WEIGHTS = { common: 60, uncommon: 25, rare: 10, epic: 4, legendary: 1 };
+        const RARITY_RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+        const EYES = ['·', '✦', '×', '◉', '@', '°'];
+
+        let filters = {
+            species: null,
+            rarity: null,
+            hat: null,
+            shiny: false,
+            minStats: {}
+        };
+
+        let currentResult = null;
+
+        // Initialize UI
+        function initUI() {
+            const speciesGrid = document.getElementById('species-grid');
+            SPECIES.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.textContent = s.name;
+                div.onclick = () => toggleFilter('species', s.id, div);
+                speciesGrid.appendChild(div);
+            });
+
+            const rarityGrid = document.getElementById('rarity-grid');
+            RARITIES.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.textContent = r.name;
+                div.dataset.color = r.color;
+                div.onclick = () => toggleFilter('rarity', r.id, div);
+                rarityGrid.appendChild(div);
+            });
+
+            const hatGrid = document.getElementById('hat-grid');
+            HATS.forEach(h => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.textContent = h.name;
+                div.onclick = () => toggleFilter('hat', h.id, div);
+                hatGrid.appendChild(div);
+            });
+        }
+
+        function toggleFilter(type, value, element) {
+            const grid = element.parentElement;
+            const items = grid.querySelectorAll('.item');
+
+            if (filters[type] === value) {
+                filters[type] = null;
+                element.classList.remove('selected');
+                element.style.borderColor = '';
+                element.style.background = '';
+            } else {
+                items.forEach(item => {
+                    item.classList.remove('selected');
+                    item.style.borderColor = '';
+                    item.style.background = '';
+                });
+                filters[type] = value;
+                element.classList.add('selected');
+
+                if (type === 'rarity') {
+                    const color = element.dataset.color;
+                    element.style.borderColor = color;
+                    element.style.background = color;
+                }
+            }
+        }
+
+        // Hash function (simple FNV-1a)
+        function hashString(str) {
+            let hash = 2166136261;
+            for (let i = 0; i < str.length; i++) {
+                hash ^= str.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return hash >>> 0;
+        }
+
+        // Mulberry32 PRNG
+        function mulberry32(seed) {
+            let a = seed >>> 0;
+            return function() {
+                a |= 0;
+                a = (a + 0x6d2b79f5) | 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function pick(rng, arr) {
+            return arr[Math.floor(rng() * arr.length)];
+        }
+
+        function rollRarity(rng) {
+            let roll = rng() * 100;
+            for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary']) {
+                roll -= RARITY_WEIGHTS[r];
+                if (roll < 0) return r;
+            }
+            return 'common';
+        }
+
+        function rollStats(rng, rarity) {
+            const minStat = { common: 5, uncommon: 15, rare: 25, epic: 35, legendary: 50 }[rarity];
+            const stats = {};
+            const statNames = ['DEBUGGING', 'PATIENCE', 'CHAOS', 'WISDOM', 'SNARK'];
+
+            const peakIdx = Math.floor(rng() * 5);
+            const lowIdx = (peakIdx + 1 + Math.floor(rng() * 4)) % 5;
+
+            statNames.forEach((name, i) => {
+                if (i === peakIdx) {
+                    stats[name] = minStat + 50 + Math.floor(rng() * 30);
+                } else if (i === lowIdx) {
+                    stats[name] = Math.max(1, minStat - 10 + Math.floor(rng() * 15));
+                } else {
+                    stats[name] = minStat + Math.floor(rng() * 40);
+                }
+            });
+
+            return stats;
+        }
+
+        function generateFromUserId(userId) {
+            const rng = mulberry32(hashString(userId + SALT));
+            const species = pick(rng, SPECIES.map(s => s.id));
+            const eye = pick(rng, EYES);
+            const rarity = rollRarity(rng);
+            const hat = rarity === 'common' ? 'none' : pick(rng, HATS.filter(h => h.id !== 'none').map(h => h.id));
+            const shiny = rng() < 0.01;
+            const stats = rollStats(rng, rarity);
+
+            return { species, eye, rarity, hat, shiny, stats };
+        }
+
+        function randomHex(length) {
+            const bytes = new Uint8Array(length);
+            crypto.getRandomValues(bytes);
+            return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function generateBuddy() {
+            const generateBtn = document.getElementById('generate-btn');
+            const copyBtn = document.getElementById('copy-btn');
+            const progressContainer = document.getElementById('progress-container');
+            const resultContainer = document.getElementById('result-container');
+
+            generateBtn.disabled = true;
+            copyBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            resultContainer.innerHTML = '';
+            currentResult = null;
+
+            // Get min stats
+            const minStats = {};
+            ['DEBUGGING', 'PATIENCE', 'CHAOS', 'WISDOM', 'SNARK'].forEach(stat => {
+                const val = document.getElementById(`stat-${stat}`).value;
+                if (val) minStats[stat] = parseInt(val);
+            });
+
+            filters.shiny = document.getElementById('shiny-checkbox').checked;
+            filters.minStats = minStats;
+
+            const maxIterations = 500000;
+            let best = { rarity: 'common', uid: '', buddy: null };
+            let found = 0;
+
+            progressContainer.innerHTML = `
+                <div class="progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-text" id="progress-text">准备开始...</div>
+                </div>
+            `;
+
+            const startTime = Date.now();
+
+            for (let i = 0; i < maxIterations; i++) {
+                const uid = randomHex(32);
+                const buddy = generateFromUserId(uid);
+
+                // Check filters
+                if (filters.species && buddy.species !== filters.species) continue;
+                if (filters.hat && buddy.hat !== filters.hat) continue;
+                if (filters.shiny && !buddy.shiny) continue;
+
+                // Check stats
+                let statsMatch = true;
+                for (const [stat, minVal] of Object.entries(minStats)) {
+                    if (buddy.stats[stat] < minVal) {
+                        statsMatch = false;
+                        break;
+                    }
+                }
+                if (!statsMatch) continue;
+
+                // Check rarity
+                if (filters.rarity) {
+                    if (buddy.rarity === filters.rarity) {
+                        currentResult = { uid, buddy, iterations: i + 1 };
+                        showResult(currentResult);
+                        generateBtn.disabled = false;
+                        copyBtn.disabled = false;
+                        progressContainer.style.display = 'none';
+                        return;
+                    }
+                } else {
+                    if (RARITY_RANK[buddy.rarity] > RARITY_RANK[best.rarity]) {
+                        best = { rarity: buddy.rarity, uid, buddy };
+                        found++;
+
+                        if (buddy.rarity === 'legendary') {
+                            currentResult = { uid, buddy, iterations: i + 1 };
+                            showResult(currentResult);
+                            generateBtn.disabled = false;
+                            copyBtn.disabled = false;
+                            progressContainer.style.display = 'none';
+                            return;
+                        }
+                    }
+                }
+
+                // Update progress every 5000 iterations
+                if (i % 5000 === 0) {
+                    const progress = (i / maxIterations) * 100;
+                    document.getElementById('progress-fill').style.width = progress + '%';
+                    document.getElementById('progress-text').textContent =
+                        `已搜索: ${i.toLocaleString()} / ${maxIterations.toLocaleString()} | 已找到 ${found} 个候选`;
+
+                    // Allow UI to update
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+            }
+
+            // Show best result
+            if (best.buddy) {
+                currentResult = { uid: best.uid, buddy: best.buddy, iterations: maxIterations };
+                showResult(currentResult);
+            } else {
+                resultContainer.innerHTML = `
+                    <div class="result error">
+                        <div class="result-title">❌ 未找到匹配的宠物</div>
+                        <div class="result-content">请尝试放宽筛选条件</div>
+                    </div>
+                `;
+            }
+
+            generateBtn.disabled = false;
+            copyBtn.disabled = !currentResult;
+            progressContainer.style.display = 'none';
+        }
+
+        function showResult(result) {
+            const resultContainer = document.getElementById('result-container');
+            const { uid, buddy, iterations } = result;
+
+            const speciesName = SPECIES.find(s => s.id === buddy.species)?.name || buddy.species;
+            const rarityInfo = RARITIES.find(r => r.id === buddy.rarity);
+            const hatName = HATS.find(h => h.id === buddy.hat)?.name || buddy.hat;
+
+            resultContainer.innerHTML = `
+                <div class="result">
+                    <div class="result-title">🎉 找到匹配的宠物!</div>
+                    <div class="result-content">
+                        <p><strong>物种:</strong> ${speciesName}</p>
+                        <p><strong>稀有度:</strong> <span style="color: ${rarityInfo.color}">${rarityInfo.name}</span></p>
+                        <p><strong>帽子:</strong> ${hatName}</p>
+                        <p><strong>闪光:</strong> ${buddy.shiny ? '✨ 是' : '否'}</p>
+                        <p><strong>属性:</strong></p>
+                        <ul style="margin-left: 20px; margin-top: 4px;">
+                            <li>调试能力: ${buddy.stats.DEBUGGING}</li>
+                            <li>耐心: ${buddy.stats.PATIENCE}</li>
+                            <li>混乱值: ${buddy.stats.CHAOS}</li>
+                            <li>智慧: ${buddy.stats.WISDOM}</li>
+                            <li>毒舌值: ${buddy.stats.SNARK}</li>
+                        </ul>
+                        <p style="margin-top: 12px;"><strong>User ID:</strong></p>
+                        <p><code>${uid}</code></p>
+                        <p style="margin-top: 8px;"><strong>迭代次数:</strong> ${iterations.toLocaleString()}</p>
+                        <p style="margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 6px; font-size: 13px;">
+                            💡 <strong>使用方法:</strong><br>
+                            1. 点击"复制 UserID"按钮<br>
+                            2. 编辑 <code>~/.claude.json</code><br>
+                            3. 删除 <code>companion</code> 字段(如果有)<br>
+                            4. 将 <code>userID</code> 替换为上面的值<br>
+                            5. 重启 Claude Code 并运行 <code>/buddy hatch</code>
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function copyUserId() {
+            if (!currentResult) return;
+
+            navigator.clipboard.writeText(currentResult.uid).then(() => {
+                const btn = document.getElementById('copy-btn');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ 已复制!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        }
+
+        // Event listeners
+        document.getElementById('generate-btn').onclick = generateBuddy;
+        document.getElementById('copy-btn').onclick = copyUserId;
+
+        // Initialize
+        initUI();
+    </script>
+</body>
+</html>
