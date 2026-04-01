@@ -503,11 +503,13 @@
         async function generateBuddy() {
             const generateBtn = document.getElementById('generate-btn');
             const copyBtn = document.getElementById('copy-btn');
+            const downloadBtn = document.getElementById('download-btn');
             const progressContainer = document.getElementById('progress-container');
             const resultContainer = document.getElementById('result-container');
 
             generateBtn.disabled = true;
             copyBtn.disabled = true;
+            downloadBtn.disabled = true;
             progressContainer.style.display = 'block';
             resultContainer.innerHTML = '';
             currentResult = null;
@@ -521,98 +523,56 @@
 
             filters.shiny = document.getElementById('shiny-checkbox').checked;
             filters.minStats = minStats;
-
-            const maxIterations = 500000;
-            let best = { rarity: 'common', uid: '', buddy: null };
-            let found = 0;
+            filters.maxIterations = 500000;
 
             progressContainer.innerHTML = `
                 <div class="progress">
                     <div class="progress-bar">
-                        <div class="progress-fill" id="progress-fill"></div>
+                        <div class="progress-fill" id="progress-fill" style="width: 50%"></div>
                     </div>
-                    <div class="progress-text" id="progress-text">准备开始...</div>
+                    <div class="progress-text" id="progress-text">正在搜索中...</div>
                 </div>
             `;
 
-            const startTime = Date.now();
+            try {
+                const response = await fetch('http://localhost:3000/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(filters)
+                });
 
-            for (let i = 0; i < maxIterations; i++) {
-                const uid = randomHex(32);
-                const buddy = generateFromUserId(uid);
+                const result = await response.json();
 
-                // Check filters
-                if (filters.species && buddy.species !== filters.species) continue;
-                if (filters.hat && buddy.hat !== filters.hat) continue;
-                if (filters.shiny && !buddy.shiny) continue;
-
-                // Check stats
-                let statsMatch = true;
-                for (const [stat, minVal] of Object.entries(minStats)) {
-                    if (buddy.stats[stat] < minVal) {
-                        statsMatch = false;
-                        break;
-                    }
-                }
-                if (!statsMatch) continue;
-
-                // Check rarity
-                if (filters.rarity) {
-                    if (buddy.rarity === filters.rarity) {
-                        currentResult = { uid, buddy, iterations: i + 1 };
-                        showResult(currentResult);
-                        generateBtn.disabled = false;
-                        copyBtn.disabled = false;
-                        document.getElementById('download-btn').disabled = false;
-                        progressContainer.style.display = 'none';
-                        return;
-                    }
+                if (result.success) {
+                    currentResult = result;
+                    showResult(result);
                 } else {
-                    if (RARITY_RANK[buddy.rarity] > RARITY_RANK[best.rarity]) {
-                        best = { rarity: buddy.rarity, uid, buddy };
-                        found++;
-
-                        if (buddy.rarity === 'legendary') {
-                            currentResult = { uid, buddy, iterations: i + 1 };
-                            showResult(currentResult);
-                            generateBtn.disabled = false;
-                            copyBtn.disabled = false;
-                            document.getElementById('download-btn').disabled = false;
-                            progressContainer.style.display = 'none';
-                            return;
-                        }
-                    }
+                    resultContainer.innerHTML = `
+                        <div class="result error">
+                            <div class="result-title">❌ 未找到匹配的宠物</div>
+                            <div class="result-content">${result.error || '请尝试放宽筛选条件'}</div>
+                        </div>
+                    `;
                 }
-
-                // Update progress every 5000 iterations
-                if (i % 5000 === 0) {
-                    const progress = (i / maxIterations) * 100;
-                    document.getElementById('progress-fill').style.width = progress + '%';
-                    document.getElementById('progress-text').textContent =
-                        `已搜索: ${i.toLocaleString()} / ${maxIterations.toLocaleString()} | 已找到 ${found} 个候选`;
-
-                    // Allow UI to update
-                    await new Promise(resolve => setTimeout(resolve, 0));
-                }
-            }
-
-            // Show best result
-            if (best.buddy) {
-                currentResult = { uid: best.uid, buddy: best.buddy, iterations: maxIterations };
-                showResult(currentResult);
-            } else {
+            } catch (error) {
                 resultContainer.innerHTML = `
                     <div class="result error">
-                        <div class="result-title">❌ 未找到匹配的宠物</div>
-                        <div class="result-content">请尝试放宽筛选条件</div>
+                        <div class="result-title">❌ 连接失败</div>
+                        <div class="result-content">
+                            无法连接到后端服务。请确保:<br>
+                            1. 已安装 Bun (运行 <code>curl -fsSL https://bun.sh/install | bash</code>)<br>
+                            2. 已启动后端服务 (双击 <code>启动服务器-Mac.command</code>)<br>
+                            3. 服务运行在 http://localhost:3000<br><br>
+                            错误信息: ${error.message}
+                        </div>
                     </div>
                 `;
+            } finally {
+                generateBtn.disabled = false;
+                copyBtn.disabled = !currentResult;
+                downloadBtn.disabled = !currentResult;
+                progressContainer.style.display = 'none';
             }
-
-            generateBtn.disabled = false;
-            copyBtn.disabled = !currentResult;
-            document.getElementById('download-btn').disabled = !currentResult;
-            progressContainer.style.display = 'none';
         }
 
         function showResult(result) {
