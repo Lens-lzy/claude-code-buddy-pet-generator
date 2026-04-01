@@ -175,6 +175,42 @@
             border-color: #fca5a5;
         }
         .error .result-title { color: #dc2626; }
+        .info-box {
+            background: #e0f2fe;
+            border: 2px solid #38bdf8;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .info-box strong { color: #0369a1; }
+        .info-box code {
+            background: #bae6fd;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .file-upload {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+        }
+        .file-upload input[type="file"] {
+            flex: 1;
+            padding: 10px;
+            border: 2px dashed #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .btn-success {
+            background: #22c55e;
+            color: white;
+        }
+        .btn-success:hover:not(:disabled) {
+            background: #16a34a;
+        }
     </style>
 </head>
 <body>
@@ -185,6 +221,12 @@
         </div>
 
         <div class="content">
+            <div class="info-box">
+                <strong>📍 配置文件位置:</strong><br>
+                • Mac/Linux: <code>~/.claude.json</code> (即 <code>/Users/你的用户名/.claude.json</code>)<br>
+                • Windows: <code>%USERPROFILE%\.claude.json</code> (即 <code>C:\Users\你的用户名\.claude.json</code>)
+            </div>
+
             <div class="section">
                 <div class="section-title">选择物种</div>
                 <div class="grid" id="species-grid"></div>
@@ -238,6 +280,17 @@
             <div class="actions">
                 <button class="btn btn-primary" id="generate-btn">🎲 开始生成</button>
                 <button class="btn btn-secondary" id="copy-btn" disabled>📋 复制 UserID</button>
+                <button class="btn btn-success" id="download-btn" disabled>💾 下载配置文件</button>
+            </div>
+
+            <div class="section" id="config-section" style="display: none;">
+                <div class="section-title">📂 自动修改配置文件 (可选)</div>
+                <p style="font-size: 14px; color: #666; margin-bottom: 12px;">
+                    上传你的 <code>.claude.json</code> 文件，程序会自动删除 companion 字段并替换 userID，然后下载修改后的文件。
+                </p>
+                <div class="file-upload">
+                    <input type="file" id="config-file" accept=".json" />
+                </div>
             </div>
 
             <div id="progress-container" style="display: none;"></div>
@@ -246,6 +299,10 @@
     </div>
 
     <script>
+        const SPECIES_LIST = ['duck','goose','blob','cat','dragon','octopus','owl',
+            'penguin','turtle','snail','ghost','axolotl','capybara','cactus',
+            'robot','rabbit','mushroom','chonk'];
+
         const SPECIES = [
             { id: 'duck', name: '🦆 鸭子' },
             { id: 'goose', name: '🪿 鹅' },
@@ -267,7 +324,8 @@
             { id: 'chonk', name: '🐈 胖猫' }
         ];
 
-        const RARITIES = [
+        const RARITIES = ['common','uncommon','rare','epic','legendary'];
+        const RARITIES_DISPLAY = [
             { id: 'common', name: '★ 普通', color: '#9ca3af' },
             { id: 'uncommon', name: '★★ 非凡', color: '#22c55e' },
             { id: 'rare', name: '★★★ 稀有', color: '#3b82f6' },
@@ -287,8 +345,8 @@
         ];
 
         const SALT = 'friend-2026-401';
-        const RARITY_WEIGHTS = { common: 60, uncommon: 25, rare: 10, epic: 4, legendary: 1 };
-        const RARITY_RANK = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
+        const RARITY_WEIGHTS = { common:60, uncommon:25, rare:10, epic:4, legendary:1 };
+        const RARITY_RANK = { common:0, uncommon:1, rare:2, epic:3, legendary:4 };
         const EYES = ['·', '✦', '×', '◉', '@', '°'];
 
         let filters = {
@@ -313,7 +371,7 @@
             });
 
             const rarityGrid = document.getElementById('rarity-grid');
-            RARITIES.forEach(r => {
+            RARITIES_DISPLAY.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'item';
                 div.textContent = r.name;
@@ -358,14 +416,29 @@
             }
         }
 
-        // Hash function (simple FNV-1a)
+        // Hash function - mimics Bun.hash() using Wyhash-like algorithm
+        // Bun.hash uses Wyhash internally, we approximate it with a similar fast hash
         function hashString(str) {
-            let hash = 2166136261;
-            for (let i = 0; i < str.length; i++) {
-                hash ^= str.charCodeAt(i);
-                hash = Math.imul(hash, 16777619);
+            // Convert string to bytes
+            const encoder = new TextEncoder();
+            const bytes = encoder.encode(str);
+
+            // Wyhash-inspired implementation
+            let h = 0n;
+            const p0 = 0xa0761d6478bd642fn;
+            const p1 = 0xe7037ed1a0b428dbn;
+
+            for (let i = 0; i < bytes.length; i++) {
+                h = h ^ BigInt(bytes[i]);
+                h = (h * p0) & 0xffffffffffffffffn;
             }
-            return hash >>> 0;
+
+            h = h ^ (h >> 32n);
+            h = (h * p1) & 0xffffffffffffffffn;
+            h = h ^ (h >> 32n);
+
+            // Return as 32-bit unsigned integer
+            return Number(h & 0xffffffffn);
         }
 
         // Mulberry32 PRNG
@@ -380,17 +453,12 @@
             };
         }
 
-        function pick(rng, arr) {
-            return arr[Math.floor(rng() * arr.length)];
-        }
+        function pick(rng, arr) { return arr[Math.floor(rng() * arr.length)] }
 
         function rollRarity(rng) {
-            let roll = rng() * 100;
-            for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary']) {
-                roll -= RARITY_WEIGHTS[r];
-                if (roll < 0) return r;
-            }
-            return 'common';
+            let roll = rng() * 100
+            for (const r of RARITIES) { roll -= RARITY_WEIGHTS[r]; if (roll < 0) return r }
+            return 'common'
         }
 
         function rollStats(rng, rarity) {
@@ -416,9 +484,9 @@
 
         function generateFromUserId(userId) {
             const rng = mulberry32(hashString(userId + SALT));
-            const species = pick(rng, SPECIES.map(s => s.id));
-            const eye = pick(rng, EYES);
             const rarity = rollRarity(rng);
+            const species = pick(rng, SPECIES_LIST);
+            const eye = pick(rng, EYES);
             const hat = rarity === 'common' ? 'none' : pick(rng, HATS.filter(h => h.id !== 'none').map(h => h.id));
             const shiny = rng() < 0.01;
             const stats = rollStats(rng, rarity);
@@ -495,6 +563,7 @@
                         showResult(currentResult);
                         generateBtn.disabled = false;
                         copyBtn.disabled = false;
+                        document.getElementById('download-btn').disabled = false;
                         progressContainer.style.display = 'none';
                         return;
                     }
@@ -508,6 +577,7 @@
                             showResult(currentResult);
                             generateBtn.disabled = false;
                             copyBtn.disabled = false;
+                            document.getElementById('download-btn').disabled = false;
                             progressContainer.style.display = 'none';
                             return;
                         }
@@ -541,16 +611,21 @@
 
             generateBtn.disabled = false;
             copyBtn.disabled = !currentResult;
+            document.getElementById('download-btn').disabled = !currentResult;
             progressContainer.style.display = 'none';
         }
 
         function showResult(result) {
             const resultContainer = document.getElementById('result-container');
+            const configSection = document.getElementById('config-section');
             const { uid, buddy, iterations } = result;
 
             const speciesName = SPECIES.find(s => s.id === buddy.species)?.name || buddy.species;
-            const rarityInfo = RARITIES.find(r => r.id === buddy.rarity);
+            const rarityInfo = RARITIES_DISPLAY.find(r => r.id === buddy.rarity);
             const hatName = HATS.find(h => h.id === buddy.hat)?.name || buddy.hat;
+
+            // Show config section
+            configSection.style.display = 'block';
 
             resultContainer.innerHTML = `
                 <div class="result">
@@ -572,11 +647,22 @@
                         <p><code>${uid}</code></p>
                         <p style="margin-top: 8px;"><strong>迭代次数:</strong> ${iterations.toLocaleString()}</p>
                         <p style="margin-top: 12px; padding: 12px; background: #fff3cd; border-radius: 6px; font-size: 13px;">
-                            💡 <strong>使用方法:</strong><br>
+                            💡 <strong>使用方法 (三选一):</strong><br><br>
+                            <strong>方法 1 - 自动修改 (推荐):</strong><br>
+                            1. 点击下方"自动修改配置文件"区域<br>
+                            2. 上传你的 <code>.claude.json</code> 文件<br>
+                            3. 自动下载修改后的文件<br>
+                            4. 用下载的文件替换原配置文件<br>
+                            5. 重启 Claude Code 并运行 <code>/buddy hatch</code><br><br>
+                            <strong>方法 2 - 下载新配置:</strong><br>
+                            1. 点击"下载配置文件"按钮<br>
+                            2. 用下载的文件替换原配置文件<br>
+                            3. 重启 Claude Code 并运行 <code>/buddy hatch</code><br><br>
+                            <strong>方法 3 - 手动复制:</strong><br>
                             1. 点击"复制 UserID"按钮<br>
                             2. 编辑 <code>~/.claude.json</code><br>
                             3. 删除 <code>companion</code> 字段(如果有)<br>
-                            4. 将 <code>userID</code> 替换为上面的值<br>
+                            4. 将 <code>userID</code> 替换为复制的值<br>
                             5. 重启 Claude Code 并运行 <code>/buddy hatch</code>
                         </p>
                     </div>
@@ -597,9 +683,71 @@
             });
         }
 
+        function downloadConfig() {
+            if (!currentResult) return;
+
+            const config = {
+                userID: currentResult.uid
+            };
+
+            const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '.claude.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            const btn = document.getElementById('download-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ 已下载!';
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        }
+
+        function handleConfigUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !currentResult) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const config = JSON.parse(e.target.result);
+
+                    // Remove companion field and update userID
+                    delete config.companion;
+                    config.userID = currentResult.uid;
+
+                    // Download modified config
+                    const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '.claude.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    alert('✅ 配置文件已修改并下载!\n请用下载的文件替换原配置文件，然后重启 Claude Code。');
+
+                    // Reset file input
+                    event.target.value = '';
+                } catch (err) {
+                    alert('❌ 配置文件格式错误: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
         // Event listeners
         document.getElementById('generate-btn').onclick = generateBuddy;
         document.getElementById('copy-btn').onclick = copyUserId;
+        document.getElementById('download-btn').onclick = downloadConfig;
+        document.getElementById('config-file').onchange = handleConfigUpload;
 
         // Initialize
         initUI();
