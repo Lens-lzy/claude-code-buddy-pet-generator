@@ -21,6 +21,6 @@ echo.
 
 REM 启动服务器
 cd /d "%~dp0"
-bun server.js
+bun buddy-reroll.js --serve
 
 pause

@@ -31,7 +31,7 @@ echo ""
 
 # 启动服务器
 cd "$DIR"
-$BUN_CMD server.js
+$BUN_CMD buddy-reroll.js --serve
 
 # 保持窗口打开
 read -p "按回车键退出..."

@@ -1,5 +1,7 @@
-node_modules
-dist
-dist-electron
-*.log
+node_modules/
+dist/
+dist-electron/
 .DS_Store
+*.log
+.vscode/
+.idea/

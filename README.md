@@ -1,17 +1,25 @@
-# Buddy Pet Generator - 最终版
+# Buddy Pet Generator
 
-一个使用 **Bun 后端 + HTML 前端** 的 Buddy 宠物生成器，保证算法 100% 与 Claude Code 一致。
+为 Claude Code 生成你想要的电子宠物，算法 100% 与官方一致。
+
+## ✨ 特性
+
+- 🎯 **算法精确** - 使用 Bun.hash，与 Claude Code 完全一致
+- 🎨 **可视化界面** - 选择物种、稀有度、帽子、属性等
+- 🚀 **高性能搜索** - 支持多种筛选条件
+- 💾 **一键应用** - 自动修改配置文件或手动复制
+- 🖥️ **跨平台** - Mac/Windows/Linux 通用
 
 ## 📦 文件说明
 
-- `server.js` - Bun 后端服务（使用官方 Bun.hash 保证算法一致）
-- `buddy-generator.html` - 前端界面
+- `buddy-reroll.js` - 核心生成器（CLI + HTTP 服务器）
+- `buddy-generator.html` - 可视化前端界面
 - `启动服务器-Mac.command` - Mac 启动脚本
 - `启动服务器-Windows.bat` - Windows 启动脚本
 
-## 🚀 使用步骤
+## 🚀 快速开始
 
-### 1. 安装 Bun（首次使用）
+### 1. 安装 Bun
 
 **Mac/Linux:**
 ```bash
@@ -23,12 +31,22 @@ curl -fsSL https://bun.sh/install | bash
 powershell -c "irm bun.sh/install.ps1 | iex"
 ```
 
+或者用 Homebrew (Mac):
+```bash
+brew install oven-sh/bun/bun
+```
+
 ### 2. 启动服务器
 
 **Mac:** 双击 `启动服务器-Mac.command`  
 **Windows:** 双击 `启动服务器-Windows.bat`
 
-看到 `🎮 Buddy Pet Generator 后端已启动!` 就成功了，**保持这个窗口打开**。
+或者命令行：
+```bash
+bun buddy-reroll.js --serve
+```
+
+看到 `🎮 Buddy Pet Generator 后端已启动!` 就成功了，**保持窗口打开**。
 
 ### 3. 打开前端界面
 
@@ -46,21 +64,84 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 
 ### 5. 应用配置
 
-- Mac/Linux: 配置文件在 `~/.claude.json`
-- Windows: 配置文件在 `%USERPROFILE%\.claude.json`
+配置文件位置：
+- **Mac/Linux**: `~/.claude.json`
+- **Windows**: `%USERPROFILE%\.claude.json`
 
 替换配置文件后，重启 Claude Code 并运行 `/buddy hatch`
 
+## 🎮 CLI 模式
+
+`buddy-reroll.js` 也可以作为命令行工具使用：
+
+```bash
+# 搜索传说级鸭子
+bun buddy-reroll.js --species duck --rarity legendary
+
+# 搜索闪光龙
+bun buddy-reroll.js --species dragon --shiny
+
+# 搜索所有属性 >= 80 的宠物
+bun buddy-reroll.js --min-stats 80
+
+# 检查特定 userID 会生成什么宠物
+bun buddy-reroll.js --check <your-userid>
+
+# 查看所有选项
+bun buddy-reroll.js --help
+```
+
+## 📋 可用选项
+
+### 物种 (18 种)
+duck, goose, blob, cat, dragon, octopus, owl, penguin, turtle, snail, ghost, axolotl, capybara, cactus, robot, rabbit, mushroom, chonk
+
+### 稀有度 (5 级)
+- ★ common (普通) - 60%
+- ★★ uncommon (非凡) - 25%
+- ★★★ rare (稀有) - 10%
+- ★★★★ epic (史诗) - 4%
+- ★★★★★ legendary (传说) - 1%
+
+### 帽子 (8 种)
+none, crown, tophat, propeller, halo, wizard, beanie, tinyduck
+
+### 眼睛 (6 种)
+· ✦ × ◉ @ °
+
+### 属性 (5 项)
+DEBUGGING, PATIENCE, CHAOS, WISDOM, SNARK
+
 ## ⚠️ 注意事项
 
+- **必须使用 Bun** - Node.js 的哈希算法不同，生成结果不匹配
 - 后端服务必须保持运行状态
-- 如果提示连接失败，检查服务器是否启动
-- 算法使用 Bun.hash，与 Claude Code 完全一致
 - 稀有度越高，搜索时间越长（传说级可能需要几十秒）
+- 闪光概率 1%，独立于稀有度
 
 ## 🔧 技术说明
 
-- 后端: Bun + HTTP Server
-- 前端: 纯 HTML + JavaScript
-- 算法: 完全照抄 `refer/INSTRUCTION.md` 中的实现
-- 哈希: 使用 Bun.hash (Wyhash) 保证与 Claude Code 一致
+- **运行时**: Bun (必需，使用 Bun.hash)
+- **后端**: HTTP Server (内置于 buddy-reroll.js)
+- **前端**: 纯 HTML + JavaScript
+- **算法**: 完全基于 Claude Code 源码逆向
+
+## 📝 示例
+
+生成一只传说级闪光鸭子：
+```bash
+bun buddy-reroll.js --species duck --rarity legendary --shiny --count 1
+```
+
+生成调试能力 >= 90 的猫：
+```bash
+bun buddy-reroll.js --species cat --min-stats 90
+```
+
+## 🤝 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 📄 许可
+
+MIT License
